@@ -10,7 +10,7 @@ python and BeautifulSoup.
 # Basic Steps
 
 After manually downloading the list of books and putting it into
-`slipstream_sci_fi.txt', I process the list with the following steps:
+`slipstream_sci_fi.txt`, I process the list with the following steps:
 
    * get rid of punctuation in the list. For each book in the list, put all the
      words into a list.

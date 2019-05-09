@@ -5,17 +5,25 @@ import re
 import csv
 import sys
 import time
+import random
 
 
 #headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36'}
 headers = [{'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64)'},
            {'User-Agent': 'Mozilla/5.0 (Windows NT 6.2; WOW64; rv:63.0) Gecko/20100101 Firefox/63.0'},
+           {'User-Agent': 'Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1'},
            {'User-Agent': 'Mozilla/5.0 (X11; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0'},
            {'User-Agent': 'Mozilla/5.0 (X11; Linux i586; rv:63.0) Gecko/20100101 Firefox/63.0'},
+           {'User-Agent': 'Mozilla/5.0 (X11; U; Linux Core i7-4980HQ; de; rv:32.0; compatible; JobboerseBot; http://www.jobboerse.com/bot.htm) Gecko/20100101 Firefox/38.0'},
+           {'User-Agent': 'Mozilla/5.0 (X11; U; Linux amd64; rv:5.0) Gecko/20100101 Firefox/5.0 (Debian)'},
            {'User-Agent': 'Chrome/54.0.2840.71 Safari/537.36'} ]
 #           {'User-Agent': 'AppleWebKit/537.36 (KHTML, like Gecko)'},
 N_headers = len(headers)
 nh = 0
+
+min_sec_sleep = 5.0
+sec_sleep = min_sec_sleep
+n_fail = 0
 
 csv_name = 'slipstream.csv'
 # Open the output file
@@ -65,7 +73,9 @@ with open('slipstream_sci_fi.txt', 'r') as f:
         sales_ranks = []
         n_book_links = 0
         for link in soup.findAll('a', attrs={'href': re.compile("^\/.*\/dp\/")}):
-            time.sleep(0.5)  # Don't hammer Amazon, so we don't get booted.
+            s = float(random.randrange(1,15))
+            print("Sleeping " +str(s) +" seconds")
+            time.sleep(s)  # Don't hammer Amazon, so we don't get booted.
             book_url = link.get('href')
             print( "book_url: " +book_url )
             if link.string:
@@ -102,6 +112,8 @@ with open('slipstream_sci_fi.txt', 'r') as f:
         if sales_ranks:
             book_rank = min(sales_ranks)
             print( "Top Book Sales Rank: " +str(book_rank))
+            n_fail = 0
+            sec_sleep = min_sec_sleep
 
             csvf = open(csv_name, 'a+')
             csv_writer = csv.writer(csvf)
@@ -110,13 +122,23 @@ with open('slipstream_sci_fi.txt', 'r') as f:
         else:
             print("FAILED with nh = " +str(nh))
             book_rank = sys.maxsize
+            n_fail +=1
+            sec_sleep = sec_sleep * 2
+
+        if n_fail > 10:
+            failf = open("booted.html", 'w')
+            failf.write(str(soup.contents))
+            failf.close()
+            print("Got booted by Amazon. Try opening booted.html in a browser")
         
 
         # Rotate user agent, to prevent getting booted
-        nh += 1
-        if nh >= N_headers:
-            nh = 0
+        #nh += 1
+        #if nh >= N_headers:
+        #    nh = 0
+        nh = random.randrange(0, N_headers-1)
 
-        time.sleep(5.0)  # Don't hammer Amazon, so we don't get booted.
+        print("Sleeping " +str(sec_sleep) +" seconds")
+        time.sleep(sec_sleep)  # Don't hammer Amazon, so we don't get booted.
         print("")
 

@@ -17,8 +17,10 @@ parser.add_argument('--booted_name', action='store', default="booted.html",
         help='File for storing the booted HTML message from Amazon: %(default)s')
 parser.add_argument('--min_sec_sleep', metavar='N', default=5.0,
         help=' %(default)s')
+parser.add_argument('--inter_book_sleep', metavar='N', default=30.0,
+        help='Max sleep between book lookups: %(default)s')
 parser.add_argument('--inter_asin_sleep', metavar='N', default=15.0,
-        help=' %(default)s')
+        help='Max sleep between ASIN lookups: %(default)s')
 parser.add_argument('--max_book_links', metavar='N', default=4,
         help='Max number of book links to follow %(default)s')
 parser.add_argument('--max_fails', metavar='N', default=5,
@@ -54,8 +56,8 @@ def save_soup_cont(text, name=args.booted_name, mode = 'w+'):
     f.close()
 
 
-def random_sleep(N):
-    s = float(random.randrange(1,N))
+def random_sleep(maxN, minN=1):
+    s = float(random.randrange(minN, maxN))
     print("random sleeping " +str(s) +" seconds")
     time.sleep(s)
 
@@ -184,7 +186,7 @@ with open('slipstream_sci_fi.txt', 'r') as f:
         if sales_ranks:
             book_rank = min(sales_ranks)
             print( "Top Book Sales Rank: " +str(book_rank))
-            sec_sleep = args.min_sec_sleep
+            sec_sleep = args.inter_book_sleep
 
             csvf = open(args.csv_name, 'a+')
             csv_writer = csv.writer(csvf)
@@ -205,6 +207,6 @@ with open('slipstream_sci_fi.txt', 'r') as f:
         #    nh = 0
         nh = random.randrange(0, N_headers-1)
 
-        random_sleep(sec_sleep)  # Don't hammer Amazon, so we don't get booted.
+        random_sleep(sec_sleep, args.min_sec_sleep)  # Don't hammer Amazon, so we don't get booted.
         print("")
 

@@ -20,3 +20,16 @@ After manually downloading the list of books and putting it into
    * Look for 'Paperback', 'Hardback', or 'Kindle' in the link text
    * Search for the Sales Rank
    * Output the results to a CSV file
+
+# Warning
+This is not the Amazon recommended way of doing things. They really want you to
+sign up for a dev acount.
+
+    > To discuss automated access to Amazon data please contact api-services-support@amazon.com.
+    > For information about migrating to our APIs refer to our Marketplace APIs at
+    > https://developer.amazonservices.com/ref=rm_c_sv, or our Product Advertising
+    > API at https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html/ref=rm_c_ac
+    > for advertising use cases.
+
+* [Marketplace APIs](https://developer.amazonservices.com/ref=rm_c_sv)
+* [Product Advertising API](https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html/ref=rm_c_ac)

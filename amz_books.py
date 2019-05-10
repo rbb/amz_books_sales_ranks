@@ -47,7 +47,6 @@ headers = [{'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64)'},
            {'User-Agent': 'Chrome/54.0.2840.71 Safari/537.36'} ]
 #           {'User-Agent': 'AppleWebKit/537.36 (KHTML, like Gecko)'},
 N_headers = len(headers)
-nh = 0
 
 def save_soup_cont(text, name=args.booted_name, mode = 'w+'):
     print("Saving " +name)
@@ -56,7 +55,7 @@ def save_soup_cont(text, name=args.booted_name, mode = 'w+'):
     f.close()
 
 
-def random_sleep(maxN, minN=1):
+def random_sleep(maxN, minN=args.min_sec_sleep):
     s = float(random.randrange(minN, maxN))
     print("random sleeping " +str(s) +" seconds")
     time.sleep(s)
@@ -66,7 +65,7 @@ class amzCheck():
         self.n_fails = 0
         self.max_fails = max_fails
 
-    def get_amz_img_link(self, soup_var):
+    def get_amz_img_link(self, soup_var, nh):
         for link in soup_var.findAll('link', href=True):
             print( link )
             url = link.get('href')
@@ -81,7 +80,7 @@ class amzCheck():
             print("FAILED with nh = " +str(nh) +", n_fails = " +str(self.n_fails))
             save_soup_cont(str(soup_var.contents))
             if self.n_fails <= self.max_fails:
-                self.get_amz_img_link(soup_var)
+                self.get_amz_img_link(soup_var, nh)
             return True
 
         self.n_fails = 0
@@ -89,124 +88,137 @@ class amzCheck():
 
 
     def limit(self):
-        if self.n_fails > self.max_fails:
+        if self.n_fails >= self.max_fails:
             return True
         return False
 
+def process_book_list():
+    nh = 0
+    amz_check = amzCheck()
 
+    # Book list from:https://web.archive.org/web/20100124072420/http://home.roadrunner.com/~lperson1/slip.html
+    with open('slipstream_sci_fi.txt', 'r') as f:
+        n_lines = 0
+        for line in f:
+            n_lines += 1
+            book = line.strip()
 
-amz_check = amzCheck()
-
-# Book list from:https://web.archive.org/web/20100124072420/http://home.roadrunner.com/~lperson1/slip.html
-with open('slipstream_sci_fi.txt', 'r') as f:
-    for line in f:
-        book = line.strip()
-
-        # Check if we've already processed this book
-        csvf = open(args.csv_name, 'r')
-        #print( "checking: " +book )
-        if book in open(args.csv_name, 'r').read():
-            #print('skipping: ' +book)
-            continue
-
-        print("--------------------------------------------------------")
-        print("nh= " +str(nh) +'   processing ' +book)
-        line = line.replace(':', '').strip()
-        line = line.replace(',', ' ')
-        line = line.replace("'s", 's')
-        line = line.replace('etc.', '')
-        #print( line.split() )
-
-        terms = '+'.join(line.split())
-        #print(terms)
-
-        url="https://www.amazon.com/s?k=" +terms +"&i=stripbooks"
-        print(url)
-        r = requests.get(url, headers=headers[nh])
-        soup = BeautifulSoup(r.content, "lxml")
-        
-        if amz_check.check_booted(soup, nh):
-            if amz_check.limit():
-                break
-            else:
+            # Check if we've already processed this book
+            csvf = open(args.csv_name, 'r')
+            #print( "checking: " +book )
+            if book in open(args.csv_name, 'r').read():
+                #print('skipping: ' +book)
                 continue
 
-        sales_ranks = []
-        n_book_links = 1
-        links = soup.findAll('a', attrs={'href': re.compile("^\/.*\/dp\/")})
-        if not links:
-            print("WARNING: no links in request. Skipping to next book")
-            continue
+            print("--------------------------------------------------------")
+            print("nh= " +str(nh) +'   processing ' +book)
+            line = line.replace(':', '').strip()
+            line = line.replace(',', ' ')
+            line = line.replace("'s", 's')
+            line = line.replace('etc.', '')
+            #print( line.split() )
 
-        for link in links:
-            book_url = link.get('href')
-            #print( "book_url: " +book_url )
-            if link.string:
-                #print( "link text: " +link.string.strip() )
-                m = re.search( '\/dp\/.*\/', book_url)
-                if m:
-                    dp_str = m.group(0)
-                    dp = dp_str[4:-1]
-                    #print( "dp: " +dp)
+            terms = '+'.join(line.split())
+            #print(terms)
 
-                    if 'Paperback' in link.string or 'Hardback' in link.string or 'Kindle' in link.string:
-                        random_sleep(args.inter_asin_sleep)
-                        book_type = link.string.strip()
-                        print( "fetching " +book_type +" book_url: " +book_url )
-                        #print( "book type: " +book_type)
-                        sales_rank = sys.maxsize
-                        book_r = requests.get('https://www.amazon.com' +book_url, headers=headers[nh])
-                        book_soup = BeautifulSoup(book_r.content, "lxml")
-                        if not amz_check.check_booted(book_soup, nh):
-                            sr = book_soup.find(id='SalesRank')
-                            if sr:
-                                srm = re.search( '\#[\d,]* ', sr.text)
-                                if srm:
-                                    srm_str = srm.group(0)
+            url="https://www.amazon.com/s?k=" +terms +"&i=stripbooks"
+            print(url)
+            r = requests.get(url, headers=headers[nh])
+            soup = BeautifulSoup(r.content, "lxml")
+            
+            if amz_check.check_booted(soup, nh):
+                if amz_check.limit():
+                    break
+                else:
+                    continue
 
-                                    # Trim the leading '#' character and the trailing space. Drop ','
-                                    sales_rank = srm_str[1:].strip().replace(',', '')
+            sales_ranks = []
+            n_book_links = 1
+            links = soup.findAll('a', attrs={'href': re.compile("^\/.*\/dp\/")})
+            if not links:
+                print("WARNING: no links in request. Skipping to next book")
+                continue
 
-                                    #print( "Sales Rank: " +sales_rank)
-                                    print( ", ".join(['nh='+str(nh), book_type, 'ASIN= '+dp, 'SR= '+sales_rank]) )
-                            else:
-                                print("WARINING: Could not find Sales Rank")
-                                fname = str(dp) +"-" +str(n_book_links) +".html"
-                                save_soup_cont(str(book_soup.contents), name=fname)
+            for link in links:
+                book_url = link.get('href')
+                #print( "book_url: " +book_url )
+                if link.string:
+                    #print( "link text: " +link.string.strip() )
+                    m = re.search( '\/dp\/.*\/', book_url)
+                    if m:
+                        dp_str = m.group(0)
+                        dp = dp_str[4:-1]
+                        #print( "dp: " +dp)
 
-                        sales_ranks.append( int(sales_rank) )
+                        if 'Paperback' in link.string or 'Hardback' in link.string or 'Kindle' in link.string:
+                            random_sleep(args.inter_asin_sleep)
+                            book_type = link.string.strip()
+                            print( "fetching " +book_type +" book_url: " +book_url )
+                            #print( "book type: " +book_type)
+                            sales_rank = sys.maxsize
+                            book_r = requests.get('https://www.amazon.com' +book_url, headers=headers[nh])
+                            book_soup = BeautifulSoup(book_r.content, "lxml")
+                            if not amz_check.check_booted(book_soup, nh):
+                                sr = book_soup.find(id='SalesRank')
+                                if sr:
+                                    srm = re.search( '\#[\d,]* ', sr.text)
+                                    if srm:
+                                        srm_str = srm.group(0)
 
-                        n_book_links += 1
-                        if n_book_links > args.max_book_links:
-                            print("Stopping at " +str(args.max_book_links) +" book links")
-                            # Only look at the top 5 links
-                            break
-                        if amz_check.limit():
-                            break
-        if sales_ranks:
-            book_rank = min(sales_ranks)
-            print( "Top Book Sales Rank: " +str(book_rank))
-            sec_sleep = args.inter_book_sleep
+                                        # Trim the leading '#' character and the trailing space. Drop ','
+                                        sales_rank = srm_str[1:].strip().replace(',', '')
 
-            csvf = open(args.csv_name, 'a+')
-            csv_writer = csv.writer(csvf)
-            csv_writer.writerow( [book, str(book_rank)] )
-            csvf.close()
-        else:
-            book_rank = sys.maxsize
-            sec_sleep = sec_sleep * 2
+                                        #print( "Sales Rank: " +sales_rank)
+                                        print( ", ".join(['nh='+str(nh), book_type, 'ASIN= '+dp, 'SR= '+sales_rank]) )
+                                else:
+                                    print("WARINING: Could not find Sales Rank")
+                                    fname = str(dp) +"-" +str(n_book_links) +".html"
+                                    save_soup_cont(str(book_soup.contents), name=fname)
 
-        if amz_check.limit():
-            break
+                            sales_ranks.append( int(sales_rank) )
+
+                            n_book_links += 1
+                            if n_book_links > args.max_book_links:
+                                print("Stopping at " +str(args.max_book_links) +" book links")
+                                # Only look at the top 5 links
+                                break
+                            if amz_check.limit():
+                                break
+            if sales_ranks:
+                book_rank = min(sales_ranks)
+                print( "Top Book Sales Rank: " +str(book_rank))
+                sec_sleep = args.inter_book_sleep
+
+                csvf = open(args.csv_name, 'a+')
+                csv_writer = csv.writer(csvf, lineterminator='\n')
+                csv_writer.writerow( [book, str(book_rank)] )
+                csvf.close()
+            else:
+                book_rank = sys.maxsize
+                sec_sleep = sec_sleep * 2
+
+            if amz_check.limit():
+                break
 
 
 
-        # Rotate user agent, to prevent getting booted
-        #nh += 1
-        #if nh >= N_headers:
-        #    nh = 0
-        nh = random.randrange(0, N_headers-1)
+            # Rotate user agent, to prevent getting booted
+            #nh += 1
+            #if nh >= N_headers:
+            #    nh = 0
+            nh = random.randrange(0, N_headers-1)
 
-        random_sleep(sec_sleep, args.min_sec_sleep)  # Don't hammer Amazon, so we don't get booted.
+            random_sleep(sec_sleep)  # Don't hammer Amazon, so we don't get booted.
+            print("")
+    if n_lines >= 329:
+        return True
+    return False
+
+book_list_complete = False
+while not book_list_complete:
+    book_list_complete = process_book_list()
+    if not book_list_complete:
         print("")
-
+        print("")
+        print("Got a lot of Amazon boots. Pausing for a bit")
+        random_sleep(1200, 120)  # Don't hammer Amazon, so we don't get booted.
